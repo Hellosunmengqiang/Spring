@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.3.xsd">
+
+     <bean id="dog"  autowire-candidate="false" class="com.springdem.model.Pet" p:id="1" p:type="dog"></bean>
+     <!-- 当autowire="byType"时，使用autowire-condidate="false" -->
+     <bean id="cat" abstract="true" p:id="1" p:type="cat"></bean>
+     <bean scope="prototype" id="cat1" parent="cat" class="com.springdem.model.Pet" p:id="2"></bean>
+     
+     <bean id="bc" class="com.springdem.model.Car"  p:id="1" p:mark="奔驰"></bean>
+     <bean id="bm" class="com.springdem.model.Car"  p:id="1" p:mark="宝马"></bean>
+        
+     <util:list id="cars">
+        <ref bean="bc"/>
+        <ref bean="bm"/>
+     </util:list>
+     
+     <bean id="person" class="com.springdem.model.Person" p:id="1" depends-on="cat1" autowire="byName"></bean><!-- byType or byName 去匹配-->
+     
+     <context:property-placeholder location="classpath:jdbc.properties"/>
+     <!-- 使用外部属性连接数据库 -->
+     <bean id="dataSource1" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="user" value="${user}"></property>
+        <property name="password" value="${password}"></property>
+        <property name="jdbcUrl" value="${jdbcUrl}"></property>
+        <property name="driverClass" value="${driverClass}"></property>
+     
+     </bean>
+     
+     
+     <bean id="cat2" class="com.springdem.model.Pet" p:id="10" p:type="cat" p:petPrice="999"></bean>    
+     <bean id="person1" class="com.springdem.model.Person">
+        <property name="id" value="11"></property>
+        <property name="pet" value="#{cat2}"></property>  <!-- 其中value 等价于关联 ref="cat2" -->
+        <property name="petPrice" value="#{cat2.petPrice}"></property>
+        <property name="cars" ref="bc"></property>
+        <property name="pi" value="#{T(java.lang.Math).PI}"></property>
+       <!-- <property name="test" value="#{cat2.petPrice > 800 ? '土豪' : '白领'}"></property>  三目运算符 -->
+        <property name="test" value="#{'0123' matches '[0-9]+'}"></property>
+     </bean>
+     
+     
+     <!-- bean 的生命周期测试 <bean id="liftBean" class="com.springdem.model.LiftBean" init-method="init" destroy-method="destroy">
+        <property name="id" value="1"></property>
+        <property name="name" value="liftBeanName"></property>
+     </bean>    
+     <bean class="com.springdem.model.MBPP"></bean>-->
+     
+     <!--1. 工厂方式配置 staticfactory 配置bean对象 -->
+     <bean id="BMWCar" class="com.springdem.model.CarStaticFactory" factory-method="getCar">
+        <constructor-arg value="2"></constructor-arg>
+     </bean>
+     
+     <!--2. Instancefactory配置bean对象 -->
+     <bean id="carInstanceFactory" class="com.springdem.model.CarInstanceFactory">
+       <property name="cars">
+          <map>
+            <entry key="1">
+              <bean class="com.springdem.model.Car" p:id="1" p:mark="audi"></bean>             
+            </entry> 
+            <entry key="2">
+              <bean class="com.springdem.model.Car" p:id="2" p:mark="BMW"></bean>
+            </entry> 
+          </map>      
+       </property>    
+     </bean>
+     <bean id="BMW" factory-bean="carInstanceFactory" factory-method="getCar">
+       <constructor-arg value="2"></constructor-arg>
+     </bean>
+     
+      
+     <!-- 1. FactoryBean 配置bean 以及spring和quartz框架的整合-->
+     <bean id="bmw" class="com.springdem.model.CarFactoryBean">
+     <constructor-arg value="BMW"></constructor-arg><!--constructor 通过构造函数传递参数 -->   
+     </bean>
+     <!-- 2. FactoryBean 配置bean-->
+     <bean id="myJob" class="org.springframework.scheduling.quartz.JobDetailFactoryBean">
+       <property name="name" value="myQuartzJob"></property>
+       <property name="group" value="myJobGroup"></property>
+       <property name="jobClass" value="com.springdem.model.MyJob"></property>
+       <property name="durability" value="true"></property>
+       <property name="applicationContextJobDataKey" value="applicationContext"></property>
+
+     </bean>
+     <!-- 定义触发器trigger -->
+     <bean id="trigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+       <property name="name" value="myTrigger"></property>
+       <property name="group" value="myGroup"></property>
+       <property name="jobDetail" ref="myJob"></property>
+       <property name="cronExpression" value="0/10 * * * * ?"></property><!-- 0/10每隔三秒触发一次， -->
+     
+     </bean>
+     <!-- 定义调度器scheduler -->
+     <bean id="scheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+       <property name="triggers">
+        <list>
+         <!--<ref bean="trigger"/> 注释 -->
+        </list>       
+       </property>
+     </bean>
+  
+        
+        <!--1.一般方式 -->
+       <!--  <bean id="tigger" class="com.springdem.model.Tigger" p:tiggerName="小老虎"></bean>
+        <bean id="monkey" class="com.springdem.model.Monkey" p:monkeyName="小猴子"></bean>
+        <bean id="zoo" class="com.springdem.model.Zoo" p:monkey-ref="monkey" p:tigger-ref="tigger"></bean>-->
+        <!--2. 注解扫描方式component可以省去1中的bean  -->
+        <context:component-scan base-package="com.springdem" ><!-- resource-pattern="model/*.class" -->
+        
+        <!-- <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>  除去Controller -->
+       <!-- <context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>  只有Controller可以用 配合use-default-filters="false"使用-->
+        <!-- <context:exclude-filter type="assignable" expression="org.springframework.stereotype.UserDao"/> 除去UserDao接口以及实现的类 -->       
+        </context:component-scan>
+        
+        
+        <!-- aop面向切面编程 -->
+        <aop:config>
+          <aop:pointcut expression="execution(* com.springdem.aop.*.*(..))" id="pointcut"/>  
+          <aop:aspect ref="loggerAspect" order="1">
+            <aop:before method="beforeMethod" pointcut-ref="pointcut"/>
+            <aop:after method="afterMethod" pointcut-ref="pointcut"/>
+            <aop:after-returning method="returningMethod" pointcut-ref="pointcut" returning="rs"/>
+            <aop:after-throwing method="throwingMethod" pointcut-ref="pointcut" throwing="ex"/>
+          </aop:aspect>
+        </aop:config>
+        
+        
+        <!-- 配置spring 的jdbc  -->
+        <context:property-placeholder location="classpath:jdbc.properties"/>
+         <!-- 配置spring c3p0jdbc连接池  -->
+        <bean id="dataSource2" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+           <property name="user" value="${user}"></property>
+           <property name="password" value="${password}"></property>
+           <property name="jdbcUrl" value="${jdbcUrl}"></property>
+           <property name="driverClass" value="${driverClass}"></property>
+           
+           <property name="initialPoolSize" value="${initialPoolSize}"></property>
+           <property name="acquireIncrement" value="${acquireIncrement}"></property>
+           <property name="minPoolSize" value="${minPoolSize}"></property>
+           <property name="maxPoolSize" value="${maxPoolSize}"></property>
+           <property name="maxStatements" value="${maxStatements}"></property>
+           <property name="maxStatementsPerConnection" value="${maxStatementsPerConnection}"></property>              
+        </bean>
+         <!-- 配置spring 的jdbcTemplate  -->
+        <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+           <property name="dataSource" ref="dataSource2"></property>
+        </bean>
+        
+        
+        <!-- 具名参数 -->
+        <bean id="namedParameterJdbcTemplate" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
+          <constructor-arg ref="dataSource2"></constructor-arg>
+        
+        </bean>
+        
+        
+        <!-- 1.配置事务管理器 -->
+        <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+          <property name="dataSource" ref="dataSource2"></property>
+        </bean>
+        
+        <!-- 2.注解实现事务，配置文件这里开启spring注解事务 -->
+       <!--   <tx:annotation-driven transaction-manager="transactionManager"/>-->
+        
+        <!-- 2.配置事务属性tx:advice -->
+        <tx:advice id="txAdvice" transaction-manager="transactionManager">
+           <tx:attributes>
+             <tx:method name="get*" read-only="true"/>
+             <tx:method name="find*" read-only="true"/>
+             <tx:method name="select*" read-only="true"/>
+             <tx:method name="*" read-only="false"/>
+           </tx:attributes>      
+        </tx:advice>
+        
+        <!-- 3.配置事务的切入点 aop:config-->
+        <aop:config>
+          <aop:pointcut expression="execution(* com.springdem.service2.*.*(..))" id="txPointcut"/>
+          <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut"/>
+        </aop:config>
+        
+        <!-- 12与123效果一样，用123时去除@Trainsaction-->
+        
+</beans>
